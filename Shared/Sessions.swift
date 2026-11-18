@@ -36,6 +36,7 @@ struct AgentSession: Codable, Identifiable, Equatable {
     var since: Date          // when the current state began
     var updated: Date
     var pid: Int32?          // agent process, for liveness checks
+    var seenAt: Date?        // user opened this session from Agent Monitor; hides a finished turn until the next one
 
     var id: String { "\(agent)-\(sessionId)" }
     var project: String {
@@ -43,6 +44,8 @@ struct AgentSession: Codable, Identifiable, Equatable {
         return name.isEmpty ? (agent == "claude" ? "Claude Code" : "Codex") : name
     }
     var agentName: String { agent == "claude" ? "Claude" : "Codex" }
+    /// Seen after the current state began (a new finished turn resets this).
+    var isSeen: Bool { seenAt.map { $0 >= since } ?? false }
     var displayTitle: String { (title?.isEmpty == false ? title : nil) ?? project }
     var openURL: URL { URL(string: "agentmonitor://session/\(id.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_"))) ?? id)")! }
 }
@@ -78,6 +81,13 @@ enum SessionStore {
         try? data.write(to: url, options: .atomic)
     }
 
+    /// Hide a finished turn. Blockers stay until the agent reports they're resolved.
+    static func markSeen(_ id: String) {
+        guard var s = load(id), s.state == .yourTurn else { return }
+        s.seenAt = Date()
+        save(s)
+    }
+
     static func remove(_ id: String) {
         if let url = fileURL(id) { try? FileManager.default.removeItem(at: url) }
     }
@@ -97,7 +107,7 @@ enum SessionStore {
         all.filter { s in
             let age = now.timeIntervalSince(s.since)
             if s.state.isBlocking { return age < blockingTTL }
-            if s.state == .yourTurn { return age < yourTurnTTL }
+            if s.state == .yourTurn { return age < yourTurnTTL && !s.isSeen }
             return false
         }
         .sorted { ($0.state.rank, $0.since) < ($1.state.rank, $1.since) }

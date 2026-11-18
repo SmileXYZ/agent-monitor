@@ -61,7 +61,8 @@ enum Hook {
         }
 
         guard let (state, detail) = next else { exit(0) }
-        if state != s.state { s.since = now }
+        // A new finished turn or permission request is a fresh event even if the state looks the same.
+        if state != s.state || event == "Stop" || event == "PermissionRequest" { s.since = now }
         s.state = state
         s.detail = (detail?.isEmpty == false) ? detail : nil
         s.updated = now

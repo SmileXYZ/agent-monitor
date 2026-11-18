@@ -36,7 +36,7 @@ And when you run several agents at once, they quietly stall: one wants approval 
 </p>
 
 - **Blockers first, in red.** A session shows here when it needs approval for a tool call, asked you a question, or has a plan for you to review.
-- **Finished turns below.** Sessions that completed a turn and are waiting for your next prompt. They hide after 6 hours.
+- **Finished turns below.** Sessions that completed a turn and are waiting for your next prompt. Click one to open it and it leaves the list (until the agent finishes another turn). **Clear Finished** in the menu dismisses them all; otherwise they hide after 6 hours. Blockers stay until you actually answer them.
 - **Session titles.** Each row shows the session's title (Claude Code's session title, Codex's thread name), the project folder and how long it has been waiting.
 - **Click to jump.** Click a row in the widget or the menu: in Terminal and iTerm2 it selects the exact tab; for other hosts (the Claude and Codex apps, VS Code, Ghostty…) it brings the app to the front.
 - **Real time in the menu bar.** The icon shows a count, red when something is blocked.

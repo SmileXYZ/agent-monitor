@@ -109,14 +109,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func jump(_ sender: NSMenuItem) {
-        if let s = sender.representedObject as? AgentSession { Jumper.open(s) }
+        if let s = sender.representedObject as? AgentSession { openSession(s) }
+    }
+
+    /// Jump to the session; a finished turn counts as seen and leaves the list.
+    private func openSession(_ s: AgentSession) {
+        Jumper.open(s)
+        SessionStore.markSeen(s.id)
+        reloadSessions()
+    }
+
+    @objc private func clearFinished() {
+        for s in waiting where s.state == .yourTurn { SessionStore.markSeen(s.id) }
+        reloadSessions()
     }
 
     /// Widget taps arrive as agentmonitor://session/<id>.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == "agentmonitor" && url.host == "session" {
             let id = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
-            if let s = SessionStore.load(id) ?? waiting.first(where: { $0.id == id }) { Jumper.open(s) }
+            if let s = SessionStore.load(id) ?? waiting.first(where: { $0.id == id }) { openSession(s) }
         }
     }
 
@@ -150,6 +162,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             it.attributedTitle = t
             it.toolTip = s.cwd
             menu.addItem(it)
+        }
+
+        if waiting.contains(where: { $0.state == .yourTurn }) {
+            let clear = NSMenuItem(title: "Clear Finished", action: #selector(clearFinished), keyEquivalent: "")
+            clear.target = self
+            menu.addItem(clear)
         }
 
         menu.addItem(.separator())
