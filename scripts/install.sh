@@ -23,12 +23,18 @@ fi
 
 bold "→ Building…"
 xcodebuild -project AgentMonitor.xcodeproj -scheme AgentMonitor -configuration Release \
-  -destination "generic/platform=macOS" -derivedDataPath "$DERIVED" CODE_SIGN_IDENTITY="-" build -quiet
+  -destination "generic/platform=macOS" -derivedDataPath "$DERIVED" CODE_SIGN_IDENTITY="-" \
+  CURRENT_PROJECT_VERSION="$(date +%Y%m%d%H%M)" build -quiet   # new build number → macOS refreshes widget metadata
 
 bold "→ Installing to $DEST"
 pkill -x AgentMonitor 2>/dev/null || true
 rm -rf "$DEST"
 cp -R "$DERIVED/Build/Products/Release/$APP_NAME" "$DEST"
+
+# Re-register and restart the widget daemon so the gallery picks up new widgets/strings right away.
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST" || true
+pkill -f AgentMonitorWidget.appex 2>/dev/null || true
+killall chronod 2>/dev/null || true
 
 bold "→ Launching"
 open "$DEST"
