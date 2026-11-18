@@ -41,6 +41,8 @@ struct Snapshot: Codable, Equatable {
     var claude = AgentUsage(error: "No data yet")
     var codex = AgentUsage(error: "No data yet")
     var updated: Date?
+    var claudeLastGood: AgentUsage?   // last successful Claude fetch: a failure never wipes the numbers
+    var claudeRetryAt: Date?          // next allowed Claude fetch, survives relaunches (429 backoff)
 
     static let placeholder = Snapshot(
         claude: AgentUsage(fiveHour: Limit(percent: 34, resetsAt: Date().addingTimeInterval(2 * 3600 + 840)),

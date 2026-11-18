@@ -45,26 +45,93 @@ enum Fetch {
 }
 
 enum ClaudeSource {
-    /// Claude Code keeps its OAuth token in the Keychain ("Claude Code-credentials").
-    static func token() -> String? {
+    /// Claude Code keeps its OAuth credentials in the Keychain ("Claude Code-credentials").
+    /// The CLI refreshes them only while it runs, so people who live in the Claude desktop app end up
+    /// with an expired token. When it has expired, we refresh it the same way the CLI does and write
+    /// it back, so the CLI keeps working with the rotated refresh token.
+    static let service = "Claude Code-credentials"
+    static let tokenURL = URL(string: "https://platform.claude.com/v1/oauth/token")!
+    static let clientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+    private static var lastRefreshAttempt = Date.distantPast
+
+    enum TokenResult { case ok(String), missing, expired }
+
+    static func readCredentials() -> [String: Any]? {
+        guard let out = security(["find-generic-password", "-s", service, "-w"]), out.status == 0 else { return nil }
+        return try? JSONSerialization.jsonObject(with: out.data) as? [String: Any]
+    }
+
+    static func token() async -> TokenResult {
+        guard let creds = readCredentials(), let oauth = creds["claudeAiOauth"] as? [String: Any],
+              let tok = oauth["accessToken"] as? String else { return .missing }
+        let expiresAt = Fetch.num(oauth["expiresAt"]).map { Date(timeIntervalSince1970: $0 / 1000) }
+        guard let expiresAt, expiresAt < Date() else { return .ok(tok) }
+        return await refresh() ?? .expired
+    }
+
+    /// Only after expiry (a running CLI refreshes a few minutes before), at most every 10 minutes.
+    private static func refresh() async -> TokenResult? {
+        guard Date().timeIntervalSince(lastRefreshAttempt) > 600 else { return nil }
+        lastRefreshAttempt = Date()
+        // Re-read right before: the CLI may have just refreshed it.
+        guard let original = security(["find-generic-password", "-s", service, "-w"])?.data,
+              var creds = try? JSONSerialization.jsonObject(with: original) as? [String: Any], var oauth = creds["claudeAiOauth"] as? [String: Any],
+              let refreshToken = oauth["refreshToken"] as? String else { return nil }
+        if let e = Fetch.num(oauth["expiresAt"]), e / 1000 > Date().timeIntervalSince1970,
+           let tok = oauth["accessToken"] as? String { return .ok(tok) }
+
+        var body: [String: Any] = ["grant_type": "refresh_token", "refresh_token": refreshToken, "client_id": clientID]
+        if let scopes = oauth["scopes"] as? [String], !scopes.isEmpty { body["scope"] = scopes.joined(separator: " ") }
+        var req = URLRequest(url: tokenURL)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        req.timeoutInterval = 30
+        guard let j = try? await Fetch.json(req), let access = j["access_token"] as? String,
+              let expiresIn = Fetch.num(j["expires_in"]) else { return nil }
+
+        oauth["accessToken"] = access
+        if let r = j["refresh_token"] as? String { oauth["refreshToken"] = r }
+        oauth["expiresAt"] = Int64((Date().timeIntervalSince1970 + expiresIn) * 1000)
+        creds["claudeAiOauth"] = oauth
+        guard let data = try? JSONSerialization.data(withJSONObject: creds, options: [.withoutEscapingSlashes]),
+              (try? JSONSerialization.jsonObject(with: data)) != nil else { return .ok(access) }
+        // Write the whole item back and check it reads back intact; if not, put the original back.
+        // (Via argv like the CLI does for long items: `security -i` truncates lines over ~4 KB.)
+        if !write(data) || readCredentials().map(NSDictionary.init) != NSDictionary(dictionary: creds) {
+            NSLog("AgentMonitor: couldn't save the refreshed Claude token, restoring the Keychain item")
+            _ = write(original.trimmingTrailingNewline)
+        }
+        return .ok(access)
+    }
+
+    private static func write(_ data: Data) -> Bool {
+        let hex = data.map { String(format: "%02x", $0) }.joined()
+        return security(["add-generic-password", "-U", "-a", NSUserName(), "-s", service, "-X", hex])?.status == 0
+    }
+
+    private static func security(_ args: [String], input: Data? = nil) -> (status: Int32, data: Data)? {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        p.arguments = ["find-generic-password", "-s", "Claude Code-credentials", "-w"]
-        let out = Pipe()
+        p.arguments = args
+        let out = Pipe(), inp = Pipe()
         p.standardOutput = out
         p.standardError = Pipe()
+        if input != nil { p.standardInput = inp }
         do { try p.run() } catch { return nil }
+        if let input { inp.fileHandleForWriting.write(input); try? inp.fileHandleForWriting.close() }
         let data = out.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
-        guard p.terminationStatus == 0,
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let oauth = obj["claudeAiOauth"] as? [String: Any],
-              let tok = oauth["accessToken"] as? String else { return nil }
-        return tok
+        return (p.terminationStatus, data)
     }
 
     static func fetch() async -> FetchOutcome {
-        guard let tok = token() else { return .failed(reason: "Not signed in to Claude Code", auth: true) }
+        let tok: String
+        switch await token() {
+        case .ok(let t): tok = t
+        case .missing: return .failed(reason: "Not signed in to Claude Code", auth: true)
+        case .expired: return .failed(reason: "Token expired: run claude in Terminal", auth: true)
+        }
         var req = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
         req.setValue("Bearer \(tok)", forHTTPHeaderField: "Authorization")
         req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
@@ -77,7 +144,7 @@ enum ClaudeSource {
             }
             return .ok(AgentUsage(fiveHour: lim("five_hour"), week: lim("seven_day"), fetchedAt: Date()))
         } catch let e as HTTPError where e.status == 401 {
-            return .failed(reason: "Token expired, open Claude Code", auth: true)
+            return .failed(reason: "Token expired: run claude in Terminal", auth: true)
         } catch let e as HTTPError where e.status == 429 {
             return .failed(reason: "Rate limited", rateLimited: true, retryAfter: e.retryAfter)
         } catch let e as HTTPError {
@@ -159,4 +226,8 @@ enum CodexSource {
         }
         return nil
     }
+}
+
+private extension Data {
+    var trimmingTrailingNewline: Data { last == 0x0A ? dropLast() : self }
 }

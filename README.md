@@ -159,13 +159,14 @@ Both agents support lifecycle hooks with nearly the same events. The installed h
 ## Privacy
 
 - Your tokens never leave your Mac, except to the same Anthropic and OpenAI endpoints the official CLIs already talk to.
+- The only thing Agent Monitor ever writes outside its own folder: an expired Claude Code token, refreshed and saved back to its Keychain item (checked after writing, and restored if anything looks off). Plus the hooks you connect in *Integrations*.
 - There's no analytics, no telemetry and no third-party servers.
 - The snapshot file contains only percentages and reset times. Session files contain the project folder, the session title, and a one-line summary of what's pending.
 
 ## Caveats
 
 - **Both usage endpoints are undocumented.** They're what the official tools use internally, and they can change without notice. If a number disappears after an update, please open an issue.
-- **Claude tokens expire.** Claude Code refreshes its token when you use it. If the widget says *Token expired*, open Claude Code once.
+- **Claude tokens expire.** Agent Monitor uses Claude Code CLI's token, which the CLI refreshes only while it runs (the Claude desktop app has its own login). When the token has expired, Agent Monitor refreshes it the same way the CLI does and writes it back to the Keychain, so both keep working. If that fails, the widget says *Token expired*: run `claude` in Terminal once.
 - **Widgets lag; the menu bar doesn't.** macOS limits how often widgets redraw on their own, roughly every 15–30 minutes for an app in the background. Click ⟳ in the widget to force a redraw with fresh numbers. The menu bar is always live.
 - **Claude's usage endpoint rate-limits.** Agent Monitor polls it every 5 minutes and backs off on HTTP 429, so the Claude numbers can be a few minutes behind the Claude app.
 - **Exact jumping works in the Claude and Codex apps, Terminal and iTerm2.** For terminals, macOS asks once to let Agent Monitor control them (Automation). Other hosts are brought to the front without selecting the session. The Claude and Codex deep links aren't documented APIs and may change.

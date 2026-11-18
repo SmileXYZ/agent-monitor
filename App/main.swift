@@ -21,7 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ n: Notification) {
         // Don't re-hit the API on every relaunch (reinstalls, login) if the numbers are fresh.
-        if let f = snapshot.claude.fetchedAt { claudeNext = f.addingTimeInterval(Self.claudeInterval) }
+        if let r = snapshot.claudeRetryAt { claudeNext = r }
+        else if let f = snapshot.claude.fetchedAt { claudeNext = f.addingTimeInterval(Self.claudeInterval) }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = NSImage(systemSymbolName: "gauge.with.dots.needle.33percent",
                                            accessibilityDescription: "Agent Monitor")
@@ -58,21 +59,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             async let codexAPI = CodexSource.fetchAPI()
 
             var claude = snapshot.claude
+            var lastGood = snapshot.claudeLastGood
+                ?? (snapshot.claude.hasData && snapshot.claude.error == nil ? snapshot.claude : nil)
             // Manual refresh skips the 5-min interval, but not a 429 backoff, and not more than every 20 s.
             let recent = snapshot.claude.fetchedAt.map { now.timeIntervalSince($0) < 20 } ?? false
             if now >= claudeNext || (force && claudeBackoff == 0 && !recent) {
                 switch await ClaudeSource.fetch() {
                 case .ok(let u):
                     claude = u
+                    lastGood = u
                     claudeBackoff = 0
                     claudeNext = now.addingTimeInterval(Self.claudeInterval)
                 case .failed(let reason, let rateLimited, let retryAfter, let auth):
-                    claude = auth ? AgentUsage(error: reason) : snapshot.claude.failed(reason)
                     if rateLimited {
                         claudeBackoff = claudeBackoff == 0 ? 300 : min(claudeBackoff * 2, 1800)
                         claudeNext = now.addingTimeInterval(max(retryAfter ?? 0, claudeBackoff))
                     } else {
                         claudeNext = now.addingTimeInterval(120)
+                    }
+                    // Keep showing the last good numbers (marked "as of …"), unless the user has to act (auth),
+                    // or there are none.
+                    if !auth, let good = lastGood { claude = good.failed(reason) }
+                    else {
+                        let at = claudeNext.formatted(date: .omitted, time: .shortened)
+                        claude = AgentUsage(error: rateLimited ? "\(reason), retry at \(at)" : reason)
                     }
                 }
             }
@@ -90,7 +100,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 else { codex = AgentUsage(error: "No data") }
             }
 
-            snapshot = Snapshot(claude: claude, codex: codex, updated: now)
+            snapshot = Snapshot(claude: claude, codex: codex, updated: now,
+                                claudeLastGood: lastGood, claudeRetryAt: claudeNext)
             SharedStore.save(snapshot)
             WidgetCenter.shared.reloadTimelines(ofKind: "AgentMonitorWidget")
             loading = false
