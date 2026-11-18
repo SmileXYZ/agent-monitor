@@ -16,8 +16,12 @@
 </p>
 
 <p align="center">
-  <img src="docs/hero.png" alt="Agent Monitor widgets in dark and light mode" width="760">
+  <img src="docs/demo.gif" alt="Agents show up in the widget when they need you; click a row to jump to that session" width="760">
 </p>
+
+```bash
+brew install --cask paveler/tap/agent-monitor
+```
 
 ---
 
@@ -45,6 +49,10 @@ And when you run several agents at once, they quietly stall: one wants approval 
 
 ### Usage limits
 
+<p align="center">
+  <img src="docs/hero.png" alt="Agent Monitor widgets in dark and light mode" width="760">
+</p>
+
 - **Real WidgetKit widget.** It lives in the widget gallery and snaps to the desktop grid like Weather or Calendar.
 - **Three sizes.** Medium shows four rings, small shows compact bars, large adds the waiting list.
 - **Countdowns.** Time until each window resets, updated every minute.
@@ -55,9 +63,54 @@ And when you run several agents at once, they quietly stall: one wants approval 
 
 ## Install
 
-**Requirements:** macOS 14 Sonoma or later, Xcode 15 or later (free from the App Store), and Claude Code and/or Codex CLI signed in on this Mac.
+**Requirements:** macOS 14 Sonoma or later, and Claude Code and/or Codex CLI signed in on this Mac.
 
-> Xcode is needed because WidgetKit extensions can't be built with the Command Line Tools alone. You don't need an Apple Developer account: the app is signed locally ("Sign to Run Locally").
+**Homebrew** (recommended):
+
+```bash
+brew install --cask paveler/tap/agent-monitor
+```
+
+**Or download** `AgentMonitor-<version>.dmg` from [Releases](https://github.com/paveler/agent-monitor/releases/latest), drag the app to Applications, and clear the quarantine flag:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/AgentMonitor.app
+```
+
+> The app is signed ad-hoc but not notarized by Apple yet, so macOS refuses to open a downloaded copy. Homebrew clears the flag for you. Prefer to build it yourself? See [Build from source](#build-from-source).
+
+Then:
+
+1. **Launch it.** Open **Agent Monitor** from Applications. A gauge icon appears in the menu bar.
+2. **Add the widget.** Right-click the desktop → **Edit Widgets…** → search **Agent Monitor** → drag a widget onto the desktop.
+3. **Allow Keychain access.** macOS asks to let Agent Monitor read `Claude Code-credentials`. Click **Always Allow**. (Because the app isn't notarized, macOS may ask again after an update.)
+4. **Connect your agents** (for *Waiting on you*). Click the menu bar icon → **Integrations** → **Connect Claude Code…** and/or **Connect Codex…**
+   - This adds hooks to `~/.claude/settings.json` / `~/.codex/hooks.json`. Your existing hooks stay, and a backup is saved next to the file.
+   - **Codex** asks you to trust new hooks once: run `/hooks` in Codex CLI, or open **Settings → Hooks** in the Codex app.
+   - Restart running sessions so they pick up the hooks.
+5. **Turn on Launch at Login** in the menu bar icon. The widgets show data the app collects, so keep the app running.
+
+### Updating
+
+```bash
+brew upgrade --cask agent-monitor
+```
+
+Or download the new DMG and replace the app.
+
+### Uninstalling
+
+Disconnect the agents in **Integrations** (this removes only Agent Monitor's hooks), quit from the menu bar icon and remove the widgets from the desktop. Then:
+
+```bash
+brew uninstall --cask --zap agent-monitor
+```
+
+Without Homebrew: `rm -rf /Applications/AgentMonitor.app ~/Library/Application\ Support/AgentMonitor`.
+
+### Build from source
+
+Needs Xcode 15 or later (free from the App Store): WidgetKit extensions can't be built with the Command Line Tools alone. No Apple Developer account is required.
 
 ```bash
 git clone https://github.com/paveler/agent-monitor.git
@@ -65,31 +118,7 @@ cd agent-monitor
 ./scripts/install.sh
 ```
 
-The script builds the app, copies it to `/Applications` and launches it. You'll see a gauge icon in the menu bar.
-
-Then:
-
-1. **Add the widget.** Right-click the desktop → **Edit Widgets…** → search **Agent Monitor** → drag the medium or small widget onto the desktop.
-2. **Allow Keychain access.** On first launch macOS asks to let Agent Monitor read `Claude Code-credentials`. Click **Always Allow**.
-3. **Connect your agents** (for *Waiting on you*). Click the menu bar icon → **Integrations** → **Connect Claude Code…** and/or **Connect Codex…**
-   - This adds hooks to `~/.claude/settings.json` / `~/.codex/hooks.json`. Your existing hooks stay, and a backup is saved next to the file.
-   - **Codex** asks you to trust new hooks once: run `/hooks` in Codex CLI, or open **Settings → Hooks** in the Codex app.
-   - Restart running sessions so they pick up the hooks.
-4. **Turn on Launch at Login** in the menu bar icon. The widgets show data the app collects, so keep the app running.
-
-### Updating
-
-```bash
-git pull && ./scripts/install.sh
-```
-
-### Uninstalling
-
-Disconnect the agents in **Integrations** (this removes only Agent Monitor's hooks), quit from the menu bar icon, remove the widgets from the desktop, then:
-
-```bash
-rm -rf /Applications/AgentMonitor.app ~/Library/Application\ Support/AgentMonitor
-```
+The script builds the app, copies it to `/Applications` and launches it. To update: `git pull && ./scripts/install.sh`.
 
 ## How it works
 
@@ -148,8 +177,9 @@ Both agents support lifecycle hooks with nearly the same events. The installed h
 | Widget says **No data yet** | Click the menu bar icon: do numbers show there? If yes, remove the widget and add it again (macOS caches old builds). |
 | **Not signed in to Claude Code** | Run `claude` and log in, then click **Refresh**. |
 | No Keychain prompt and no Claude data | Open **Keychain Access**, find `Claude Code-credentials`, and allow Agent Monitor under **Access Control**. |
-| Widget gallery shows an old version | Run `./scripts/install.sh` again: it bumps the build number and restarts the widget daemon. Then remove the widget and add it again. |
+| Widget gallery shows an old version | Run `killall chronod` (or `./scripts/install.sh` if you build from source), then remove the widget and add it again. |
 | Widget doesn't appear in the gallery | Make sure the app is in `/Applications` and has been launched once. Then log out and back in. |
+| *"Agent Monitor" can't be opened* or *is damaged* | Run `xattr -dr com.apple.quarantine /Applications/AgentMonitor.app`, then open it again. |
 | Build fails with *requires Xcode* | Run `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`. |
 
 ## Development
@@ -163,7 +193,8 @@ tools/    icon generator and README preview renderer
 
 - The project is described in [`project.yml`](project.yml) ([XcodeGen](https://github.com/yonaskolb/XcodeGen)). The generated `AgentMonitor.xcodeproj` is committed, so XcodeGen is optional.
 - Regenerate the icon: `swift tools/make_icon.swift icon.png`.
-- Re-render the README images from the real widget views: `tools/render-previews.sh`.
+- Re-render the README images and `demo.gif` from the real widget views: `tools/render-previews.sh` (the GIF needs `ffmpeg`).
+- Build a release DMG (universal, ad-hoc signed): `scripts/release.sh` → `build/release/`.
 
 PRs welcome. Ideas on the list: notifications near the limit, usage history sparkline, jumping to the exact terminal tab, and more agents (Gemini CLI, Cursor).
 
