@@ -23,9 +23,14 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSUIElement: true
+        CFBundleURLTypes:
+          - CFBundleURLName: com.pavelershov.agentmonitor
+            CFBundleURLSchemes: [agentmonitor]
+        NSAppleEventsUsageDescription: Agent Monitor selects the terminal tab where an agent is waiting for you.
     entitlements:
       path: App/AgentMonitor.entitlements
-      properties: {}
+      properties:
+        com.apple.security.automation.apple-events: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pavelershov.agentmonitor

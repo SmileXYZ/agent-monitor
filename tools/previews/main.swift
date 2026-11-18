@@ -12,13 +12,13 @@ let demo = Snapshot(
                       week: Limit(percent: 23, resetsAt: now.addingTimeInterval(5 * 86400 + 2 * 3600))),
     updated: now)
 let waitingDemo: [AgentSession] = [
-    AgentSession(agent: "claude", sessionId: "a", cwd: "/otwechator", state: .approval,
+    AgentSession(agent: "claude", sessionId: "a", cwd: "/otwechator", title: "Ship the reviews digest", state: .approval,
                  detail: "Bash: npm run deploy", since: now.addingTimeInterval(-4 * 60), updated: now),
-    AgentSession(agent: "codex", sessionId: "b", cwd: "/1cable", state: .question,
+    AgentSession(agent: "codex", sessionId: "b", cwd: "/1cable", title: "Migrate the sync API", state: .question,
                  detail: "Keep the old API for v1 clients?", since: now.addingTimeInterval(-9 * 60), updated: now),
-    AgentSession(agent: "claude", sessionId: "c", cwd: "/agent-monitor", state: .yourTurn,
-                 detail: "Added the Waiting on You widget", since: now.addingTimeInterval(-26 * 60), updated: now),
-    AgentSession(agent: "codex", sessionId: "d", cwd: "/landing", state: .yourTurn,
+    AgentSession(agent: "claude", sessionId: "c", cwd: "/agent-monitor", title: "Waiting on You widget", state: .yourTurn,
+                 detail: "Rows are clickable now", since: now.addingTimeInterval(-26 * 60), updated: now),
+    AgentSession(agent: "codex", sessionId: "d", cwd: "/landing", title: "Responsive hero", state: .yourTurn,
                  detail: "Hero section is responsive now", since: now.addingTimeInterval(-2 * 3600), updated: now),
 ]
 let entry = Entry(date: now, snapshot: demo, waiting: waitingDemo)

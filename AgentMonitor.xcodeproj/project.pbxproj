@@ -19,6 +19,7 @@
 		77863AC7C4816E66CB1D0BF9 /* AgentWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 427E6F225B8025F98E1C3487 /* AgentWidget.swift */; };
 		C5937E7DCBB82FFF37444836 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 27BAD8B7F3D4E3C8DBF9C21F /* Assets.xcassets */; };
 		D7A5673BB528707A0B3DE366 /* HookInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B15041E92A73E11E2B796C4 /* HookInstaller.swift */; };
+		FD538E489D03C0385065963F /* Jumper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1661C994A8A6365D8F4B91C9 /* Jumper.swift */; };
 		FDC1096DFE08CB6BBB5809EC /* WidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DA5F3FAE7528942D5EE6CBD /* WidgetViews.swift */; };
 /* End PBXBuildFile section */
 
@@ -48,6 +49,7 @@
 
 /* Begin PBXFileReference section */
 		09710318DA30815C1713EA90 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		1661C994A8A6365D8F4B91C9 /* Jumper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Jumper.swift; sourceTree = "<group>"; };
 		27BAD8B7F3D4E3C8DBF9C21F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2FE57573F8C0E94881FEE3F2 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		427E6F225B8025F98E1C3487 /* AgentWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentWidget.swift; sourceTree = "<group>"; };
@@ -91,6 +93,7 @@
 				5B60FB0F7778D0A2D29E0486 /* Hook.swift */,
 				8B15041E92A73E11E2B796C4 /* HookInstaller.swift */,
 				09710318DA30815C1713EA90 /* Info.plist */,
+				1661C994A8A6365D8F4B91C9 /* Jumper.swift */,
 				2FE57573F8C0E94881FEE3F2 /* main.swift */,
 				9C9CAF61255F655EAA14B6AE /* Sources.swift */,
 			);
@@ -224,6 +227,7 @@
 			files = (
 				6F53535ED62AE1A7366DB336 /* Hook.swift in Sources */,
 				D7A5673BB528707A0B3DE366 /* HookInstaller.swift in Sources */,
+				FD538E489D03C0385065963F /* Jumper.swift in Sources */,
 				1ACAE446E8988741CEA31A94 /* Model.swift in Sources */,
 				54587BDD485047029401439A /* Sessions.swift in Sources */,
 				0743041C698D044E32A2D989 /* Sources.swift in Sources */,

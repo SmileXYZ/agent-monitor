@@ -17,9 +17,9 @@ private func liveEntry(_ date: Date) -> Entry {
 
 extension AgentSession {
     static let demo: [AgentSession] = [
-        AgentSession(agent: "claude", sessionId: "1", cwd: "/agent-monitor", state: .approval,
+        AgentSession(agent: "claude", sessionId: "1", cwd: "/agent-monitor", title: "Fix the flaky test", state: .approval,
                      detail: "Bash: npm test", since: Date().addingTimeInterval(-180), updated: Date()),
-        AgentSession(agent: "codex", sessionId: "2", cwd: "/1cable", state: .yourTurn,
+        AgentSession(agent: "codex", sessionId: "2", cwd: "/1cable", title: "Refactor the parser", state: .yourTurn,
                      detail: "Refactored the parser", since: Date().addingTimeInterval(-720), updated: Date()),
     ]
 }

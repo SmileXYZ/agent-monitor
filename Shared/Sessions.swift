@@ -43,6 +43,8 @@ struct AgentSession: Codable, Identifiable, Equatable {
         return name.isEmpty ? (agent == "claude" ? "Claude Code" : "Codex") : name
     }
     var agentName: String { agent == "claude" ? "Claude" : "Codex" }
+    var displayTitle: String { (title?.isEmpty == false ? title : nil) ?? project }
+    var openURL: URL { URL(string: "agentmonitor://session/\(id.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_"))) ?? id)")! }
 }
 
 enum SessionStore {

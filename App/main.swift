@@ -108,14 +108,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             attributes: [.foregroundColor: color, .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)])
     }
 
-    /// Bring the app hosting the agent to the front (Terminal, iTerm, Ghostty, Claude, Codex, VS Code…).
     @objc private func jump(_ sender: NSMenuItem) {
-        guard let s = sender.representedObject as? AgentSession, let pid = s.pid else { return }
-        for p in Proc.ancestors(pid) {
-            if let app = NSRunningApplication(processIdentifier: p), app.activationPolicy == .regular {
-                app.activate()
-                return
-            }
+        if let s = sender.representedObject as? AgentSession { Jumper.open(s) }
+    }
+
+    /// Widget taps arrive as agentmonitor://session/<id>.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls where url.scheme == "agentmonitor" && url.host == "session" {
+            let id = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
+            if let s = SessionStore.load(id) ?? waiting.first(where: { $0.id == id }) { Jumper.open(s) }
         }
     }
 
@@ -137,16 +138,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             it.target = self
             it.representedObject = s
             let stateColor: NSColor = s.state.isBlocking ? .systemRed : .secondaryLabelColor
-            let t = NSMutableAttributedString(string: "\(s.project)  ", attributes: [.font: NSFont.menuFont(ofSize: 0)])
+            let t = NSMutableAttributedString(string: "\(s.displayTitle)  ", attributes: [.font: NSFont.menuFont(ofSize: 0)])
             t.append(NSAttributedString(string: s.state.label, attributes: [.foregroundColor: stateColor]))
-            t.append(NSAttributedString(string: "  ·  \(s.agentName) · \(ago(s.since, now: now))",
+            let meta = s.displayTitle == s.project ? "" : "\(s.project) · "
+            t.append(NSAttributedString(string: "  ·  \(meta)\(s.agentName) · \(ago(s.since, now: now))",
                                         attributes: [.foregroundColor: NSColor.tertiaryLabelColor]))
             if let d = s.detail {
                 t.append(NSAttributedString(string: "\n\(d)", attributes: [
                     .foregroundColor: NSColor.secondaryLabelColor, .font: NSFont.menuFont(ofSize: 11)]))
             }
             it.attributedTitle = t
-            it.toolTip = s.title
+            it.toolTip = s.cwd
             menu.addItem(it)
         }
 

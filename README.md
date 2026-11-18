@@ -37,7 +37,9 @@ And when you run several agents at once, they quietly stall: one wants approval 
 
 - **Blockers first, in red.** A session shows here when it needs approval for a tool call, asked you a question, or has a plan for you to review.
 - **Finished turns below.** Sessions that completed a turn and are waiting for your next prompt. They hide after 6 hours.
-- **Real time in the menu bar.** The icon shows a count (red when something is blocked). Click a session to jump to the app it runs in: Terminal, iTerm, Ghostty, Claude, Codex, VS Code…
+- **Session titles.** Each row shows the session's title (Claude Code's session title, Codex's thread name), the project folder and how long it has been waiting.
+- **Click to jump.** Click a row in the widget or the menu: in Terminal and iTerm2 it selects the exact tab; for other hosts (the Claude and Codex apps, VS Code, Ghostty…) it brings the app to the front.
+- **Real time in the menu bar.** The icon shows a count, red when something is blocked.
 - **Works across surfaces.** Terminal sessions and desktop apps alike, via the agents' official hooks.
 - **Dead sessions clean themselves up.** On session end, or when the agent process is gone.
 
@@ -135,7 +137,7 @@ Both agents support lifecycle hooks with nearly the same events. The installed h
 - **Both usage endpoints are undocumented.** They're what the official tools use internally, and they can change without notice. If a number disappears after an update, please open an issue.
 - **Claude tokens expire.** Claude Code refreshes its token when you use it. If the widget says *Token expired*, open Claude Code once.
 - **Widgets lag; the menu bar doesn't.** macOS limits how often widgets redraw, roughly every 15–30 minutes for an app in the background. The menu bar count is live; treat the widget as an overview.
-- **Jumping goes to the app, not the exact tab.** Clicking a session activates the terminal or app that runs it.
+- **Exact-tab jumping works in Terminal and iTerm2 only.** The first time, macOS asks to let Agent Monitor control that terminal (Automation). Other hosts are brought to the front, without selecting the specific session.
 - **The Codex fallback can be stale.** When the API isn't reachable, the numbers come from your last Codex session. A window that has already reset is shown as 0%.
 
 ## Troubleshooting

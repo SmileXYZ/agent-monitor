@@ -20,6 +20,7 @@ enum Hook {
             ?? AgentSession(agent: agent, sessionId: sid, cwd: cwd, state: .idle, since: now, updated: now)
         if !cwd.isEmpty { s.cwd = cwd }
         if let t = j["session_title"] as? String, !t.isEmpty { s.title = t }
+        if agent == "codex", let t = codexThreadName(sid) { s.title = t }
         s.pid = agentPID()
 
         let tool = j["tool_name"] as? String
@@ -50,7 +51,7 @@ enum Hook {
         case "Stop":
             let busy = !((j["background_tasks"] as? [Any]) ?? []).isEmpty
                 || !((j["session_crons"] as? [Any]) ?? []).isEmpty
-            next = busy ? (.working, nil) : (.yourTurn, firstLine(j["last_assistant_message"] as? String ?? "", 90))
+            next = busy ? (.working, nil) : (.yourTurn, firstLine(plain(j["last_assistant_message"] as? String ?? ""), 90))
         case "StopFailure":
             next = (.yourTurn, "Stopped with an error")
         case "Interrupt":
@@ -69,6 +70,35 @@ enum Hook {
     }
 
     // MARK: - Helpers
+
+    /// Strips common Markdown so a summary reads as plain text: [text](url) → text, **bold**, `code`, # headings, list bullets.
+    static func plain(_ s: String) -> String {
+        var t = s
+        let rules: [(String, String)] = [
+            (#"!?\[([^\]]*)\]\([^)]*\)"#, "$1"),
+            (#"(\*\*|__|`)"#, ""),
+            (#"(?m)^\s{0,3}(#{1,6}|[-*+]|\d+\.)\s+"#, ""),
+        ]
+        for (p, r) in rules { t = t.replacingOccurrences(of: p, with: r, options: .regularExpression) }
+        return t
+    }
+
+    /// Codex keeps thread names in ~/.codex/session_index.jsonl ({"id", "thread_name"}); the latest entry wins.
+    static func codexThreadName(_ id: String) -> String? {
+        let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/session_index.jsonl")
+        guard let fh = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? fh.close() }
+        let size = (try? fh.seekToEnd()) ?? 0
+        try? fh.seek(toOffset: size > 512_000 ? size - 512_000 : 0)
+        guard let text = String(data: fh.readDataToEndOfFile(), encoding: .utf8) else { return nil }
+        for line in text.split(separator: "\n").reversed() where line.contains(id) {
+            if let o = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+               o["id"] as? String == id, let name = o["thread_name"] as? String, !name.isEmpty {
+                return name
+            }
+        }
+        return nil
+    }
 
     static func firstLine(_ s: String, _ max: Int) -> String {
         let line = s.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
@@ -117,6 +147,16 @@ enum Proc {
         var buf = [CChar](repeating: 0, count: 256)
         proc_name(pid, &buf, UInt32(buf.count))
         return String(cString: buf)
+    }
+
+    /// Controlling terminal of a process, e.g. "/dev/ttys003".
+    static func tty(_ pid: pid_t) -> String? {
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size else { return nil }
+        let raw = info.e_tdev                       // NODEV (all ones) = no controlling terminal
+        guard raw != UInt32.max, raw != 0, let name = devname(dev_t(bitPattern: raw), S_IFCHR) else { return nil }
+        return "/dev/" + String(cString: name)
     }
 
     static func isAlive(_ pid: pid_t) -> Bool {

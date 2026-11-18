@@ -172,24 +172,31 @@ struct WaitingRow: View {
     let s: AgentSession
     let now: Date
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Circle().fill(s.agent == "claude" ? Palette.claude : Palette.codex)
-                .frame(width: 7, height: 7)
-                .padding(.top, 5)
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    Text(s.project).font(.system(size: 12, weight: .semibold, design: .rounded)).lineLimit(1)
-                    Spacer(minLength: 4)
-                    Text(ago(s.since, now: now))
-                        .font(.system(size: 10, weight: .medium)).monospacedDigit()
-                        .foregroundStyle(.secondary)
+        Link(destination: s.openURL) {
+            HStack(alignment: .top, spacing: 8) {
+                Circle().fill(s.agent == "claude" ? Palette.claude : Palette.codex)
+                    .frame(width: 7, height: 7)
+                    .padding(.top, 5)
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(s.displayTitle)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(s.displayTitle == s.project ? ago(s.since, now: now) : "\(s.project) · \(ago(s.since, now: now))")
+                            .font(.system(size: 10, weight: .medium)).monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .layoutPriority(-1)
+                    }
+                    Text(s.detail.map { "\(s.state.label) · \($0)" } ?? s.state.label)
+                        .font(.system(size: 10.5, weight: s.state.isBlocking ? .semibold : .regular))
+                        .foregroundStyle(StateColor.of(s.state))
+                        .lineLimit(1)
                 }
-                Text(s.detail.map { "\(s.state.label) · \($0)" } ?? s.state.label)
-                    .font(.system(size: 10.5, weight: s.state.isBlocking ? .semibold : .regular))
-                    .foregroundStyle(StateColor.of(s.state))
-                    .lineLimit(1)
             }
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -251,12 +258,13 @@ struct WaitingSmallView: View {
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
             Spacer(minLength: 0)
             if let s = list.first {
-                Text(s.project).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                Text(s.displayTitle).font(.system(size: 11, weight: .semibold)).lineLimit(2)
                 Text(s.state.label).font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(StateColor.of(s.state)).lineLimit(1)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .widgetURL(list.first?.openURL)   // small widgets support only one tap target
     }
 }
 
