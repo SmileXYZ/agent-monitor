@@ -140,8 +140,10 @@ enum CodexSource {
                     let at = Fetch.num(w?["resets_at"]).map { Date(timeIntervalSince1970: $0) }
                     return Limit(percent: Fetch.num(w?["used_percent"]), resetsAt: at)
                 }
-                // The event sits near the end of the file, so its mtime is a close enough "as of".
-                return AgentUsage(fiveHour: lim("primary"), week: lim("secondary"), fetchedAt: modified,
+                // "as of" is the event's own time: later unrelated writes move the file's mtime,
+                // which would make old numbers look newer than the last API fetch.
+                return AgentUsage(fiveHour: lim("primary"), week: lim("secondary"),
+                                  fetchedAt: Fetch.isoDate(obj["timestamp"]) ?? modified,
                                   staleReason: "from local logs")
             }
         }
