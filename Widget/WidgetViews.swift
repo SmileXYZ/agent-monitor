@@ -4,7 +4,8 @@ import WidgetKit
 
 struct Entry: TimelineEntry {
     let date: Date
-    let snapshot: Snapshot
+    var snapshot = Snapshot()
+    var waiting: [AgentSession] = []
 }
 
 // MARK: - Views
@@ -142,7 +143,135 @@ struct AgentWidgetView: View {
     var body: some View {
         switch family {
         case .systemSmall: SmallView(entry: entry)
+        case .systemLarge: LargeView(entry: entry)
         default: MediumView(entry: entry)
+        }
+    }
+}
+
+/// Large limits widget: rings on top, who's waiting below.
+struct LargeView: View {
+    let entry: Entry
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            MediumView(entry: entry).frame(height: 128)
+            Rectangle().fill(.primary.opacity(0.1)).frame(height: 1)
+            WaitingList(sessions: entry.waiting, now: entry.date, max: 4)
+        }
+    }
+}
+
+// MARK: - Waiting on you
+
+enum StateColor {
+    static let blocking = Color(red: 1, green: 0.33, blue: 0.3)
+    static func of(_ s: SessionState) -> Color { s.isBlocking ? blocking : .secondary }
+}
+
+struct WaitingRow: View {
+    let s: AgentSession
+    let now: Date
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Circle().fill(s.agent == "claude" ? Palette.claude : Palette.codex)
+                .frame(width: 7, height: 7)
+                .padding(.top, 5)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(s.project).font(.system(size: 12, weight: .semibold, design: .rounded)).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(ago(s.since, now: now))
+                        .font(.system(size: 10, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                Text(s.detail.map { "\(s.state.label) · \($0)" } ?? s.state.label)
+                    .font(.system(size: 10.5, weight: s.state.isBlocking ? .semibold : .regular))
+                    .foregroundStyle(StateColor.of(s.state))
+                    .lineLimit(1)
+            }
+        }
+    }
+}
+
+struct AllClear: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            Text("Nothing is waiting on you").foregroundStyle(.secondary)
+        }
+        .font(.system(size: 11, weight: .medium))
+    }
+}
+
+struct WaitingList: View {
+    let sessions: [AgentSession]
+    let now: Date
+    let max: Int
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            if sessions.isEmpty {
+                AllClear()
+            } else {
+                ForEach(sessions.prefix(max)) { WaitingRow(s: $0, now: now) }
+                if sessions.count > max {
+                    Text("+\(sessions.count - max) more").font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+struct WaitingHeader: View {
+    let sessions: [AgentSession]
+    var body: some View {
+        let blocking = sessions.filter { $0.state.isBlocking }.count
+        HStack(alignment: .firstTextBaseline) {
+            Text("Waiting on you").font(.system(size: 13, weight: .semibold, design: .rounded))
+            Spacer()
+            if !sessions.isEmpty {
+                Text("\(sessions.count)")
+                    .font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit()
+                    .foregroundStyle(blocking > 0 ? StateColor.blocking : .secondary)
+            }
+        }
+    }
+}
+
+struct WaitingSmallView: View {
+    let entry: Entry
+    var body: some View {
+        let list = entry.waiting
+        let blocking = list.filter { $0.state.isBlocking }.count
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(list.count)")
+                .font(.system(size: 40, weight: .bold, design: .rounded)).monospacedDigit()
+                .foregroundStyle(blocking > 0 ? StateColor.blocking : (list.isEmpty ? .secondary : .primary))
+            Text(list.isEmpty ? "all clear" : "waiting on you")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+            Spacer(minLength: 0)
+            if let s = list.first {
+                Text(s.project).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                Text(s.state.label).font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(StateColor.of(s.state)).lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+struct WaitingWidgetView: View {
+    @Environment(\.widgetFamily) var family
+    let entry: Entry
+    var body: some View {
+        switch family {
+        case .systemSmall:
+            WaitingSmallView(entry: entry)
+        default:
+            VStack(alignment: .leading, spacing: 10) {
+                WaitingHeader(sessions: entry.waiting)
+                WaitingList(sessions: entry.waiting, now: entry.date, max: family == .systemLarge ? 8 : 3)
+            }
         }
     }
 }

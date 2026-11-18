@@ -11,7 +11,17 @@ let demo = Snapshot(
     codex: AgentUsage(fiveHour: Limit(percent: 82, resetsAt: now.addingTimeInterval(47 * 60)),
                       week: Limit(percent: 23, resetsAt: now.addingTimeInterval(5 * 86400 + 2 * 3600))),
     updated: now)
-let entry = Entry(date: now, snapshot: demo)
+let waitingDemo: [AgentSession] = [
+    AgentSession(agent: "claude", sessionId: "a", cwd: "/otwechator", state: .approval,
+                 detail: "Bash: npm run deploy", since: now.addingTimeInterval(-4 * 60), updated: now),
+    AgentSession(agent: "codex", sessionId: "b", cwd: "/1cable", state: .question,
+                 detail: "Keep the old API for v1 clients?", since: now.addingTimeInterval(-9 * 60), updated: now),
+    AgentSession(agent: "claude", sessionId: "c", cwd: "/agent-monitor", state: .yourTurn,
+                 detail: "Added the Waiting on You widget", since: now.addingTimeInterval(-26 * 60), updated: now),
+    AgentSession(agent: "codex", sessionId: "d", cwd: "/landing", state: .yourTurn,
+                 detail: "Hero section is responsive now", since: now.addingTimeInterval(-2 * 3600), updated: now),
+]
+let entry = Entry(date: now, snapshot: demo, waiting: waitingDemo)
 
 struct Card<Content: View>: View {
     let width: CGFloat, height: CGFloat
@@ -34,6 +44,16 @@ struct Card<Content: View>: View {
 
 func medium(_ dark: Bool) -> some View { Card(width: 344, height: 162, dark: dark) { MediumView(entry: entry) } }
 func small(_ dark: Bool) -> some View { Card(width: 162, height: 162, dark: dark) { SmallView(entry: entry) } }
+func large(_ dark: Bool) -> some View { Card(width: 344, height: 354, dark: dark) { LargeView(entry: entry) } }
+func waitingMedium(_ dark: Bool) -> some View {
+    Card(width: 344, height: 162, dark: dark) {
+        VStack(alignment: .leading, spacing: 10) {
+            WaitingHeader(sessions: entry.waiting)
+            WaitingList(sessions: entry.waiting, now: entry.date, max: 3)
+        }
+    }
+}
+func waitingSmall(_ dark: Bool) -> some View { Card(width: 162, height: 162, dark: dark) { WaitingSmallView(entry: entry) } }
 
 struct Backdrop<Content: View>: View {
     @ViewBuilder let content: Content
@@ -67,4 +87,13 @@ MainActor.assumeIsolated {
             HStack(spacing: 24) { medium(false); small(false) }
         }
     }, "hero.png")
+    save(Backdrop {
+        HStack(alignment: .top, spacing: 24) {
+            large(true)
+            VStack(alignment: .leading, spacing: 30) {
+                waitingMedium(false)
+                HStack(spacing: 20) { waitingSmall(true); waitingSmall(false) }
+            }
+        }
+    }, "waiting.png")
 }
