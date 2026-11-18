@@ -146,6 +146,7 @@ Both agents support lifecycle hooks with nearly the same events. The installed h
 | Widget says **No data yet** | Click the menu bar icon: do numbers show there? If yes, remove the widget and add it again (macOS caches old builds). |
 | **Not signed in to Claude Code** | Run `claude` and log in, then click **Refresh**. |
 | No Keychain prompt and no Claude data | Open **Keychain Access**, find `Claude Code-credentials`, and allow Agent Monitor under **Access Control**. |
+| Widget gallery shows an old version | Run `./scripts/install.sh` again: it bumps the build number and restarts the widget daemon. Then remove the widget and add it again. |
 | Widget doesn't appear in the gallery | Make sure the app is in `/Applications` and has been launched once. Then log out and back in. |
 | Build fails with *requires Xcode* | Run `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`. |
 
