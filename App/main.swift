@@ -12,10 +12,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var snapshot = SharedStore.load() ?? Snapshot()
     private var waiting: [AgentSession] = []
     private var loading = false
+    // Claude's usage endpoint rate-limits aggressively: poll every 5 min, back off on 429.
+    private static let claudeInterval: TimeInterval = 300
+    private var claudeNext = Date.distantPast
+    private var claudeBackoff: TimeInterval = 0
     private var watcher: DispatchSourceFileSystemObject?
     private var reloadPending = false
 
     func applicationDidFinishLaunching(_ n: Notification) {
+        // Don't re-hit the API on every relaunch (reinstalls, login) if the numbers are fresh.
+        if let f = snapshot.claude.fetchedAt { claudeNext = f.addingTimeInterval(Self.claudeInterval) }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = NSImage(systemSymbolName: "gauge.with.dots.needle.33percent",
                                            accessibilityDescription: "Agent Monitor")
@@ -43,14 +49,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: usage limits
 
-    func refresh() {
+    func refresh(force: Bool = false) {
         guard !loading else { return }
         loading = true
         Task {
-            async let c = ClaudeSource.fetch()
-            async let x = CodexSource.fetch()
-            let (cc, xx) = await (c, x)
-            snapshot = Snapshot(claude: cc, codex: xx, updated: Date())
+            let now = Date()
+            async let codexAPI = CodexSource.fetchAPI()
+
+            var claude = snapshot.claude
+            if now >= claudeNext || (force && claudeBackoff == 0) {
+                switch await ClaudeSource.fetch() {
+                case .ok(let u):
+                    claude = u
+                    claudeBackoff = 0
+                    claudeNext = now.addingTimeInterval(Self.claudeInterval)
+                case .failed(let reason, let rateLimited, let retryAfter):
+                    claude = snapshot.claude.failed(reason)
+                    if rateLimited {
+                        claudeBackoff = claudeBackoff == 0 ? 300 : min(claudeBackoff * 2, 1800)
+                        claudeNext = now.addingTimeInterval(max(retryAfter ?? 0, claudeBackoff))
+                    } else {
+                        claudeNext = now.addingTimeInterval(120)
+                    }
+                }
+            }
+
+            // Codex: live API; on failure keep the last numbers; local logs only when there's nothing else.
+            var codex: AgentUsage
+            if let api = await codexAPI { codex = api }
+            else if snapshot.codex.hasData, snapshot.codex.error == nil { codex = snapshot.codex.failed("Offline") }
+            else { codex = CodexSource.fromLogs() ?? AgentUsage(error: "No data") }
+
+            snapshot = Snapshot(claude: claude, codex: codex, updated: now)
             SharedStore.save(snapshot)
             WidgetCenter.shared.reloadTimelines(ofKind: "AgentMonitorWidget")
             loading = false
@@ -181,7 +211,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         func line(_ name: String, _ u: AgentUsage) -> String {
             if let e = u.error { return "\(name): \(e)" }
             func p(_ l: Limit) -> String { l.effectivePercent().map { "\(Int($0.rounded()))%" } ?? "—" }
-            return "\(name):  5h \(p(u.fiveHour))  ·  week \(p(u.week))"
+            let stale = u.staleNote.map { "   (\($0), \(u.staleReason ?? ""))" } ?? ""
+            return "\(name):  5h \(p(u.fiveHour))  ·  week \(p(u.week))\(stale)"
         }
         header(line("Claude", snapshot.claude))
         header(line("Codex", snapshot.codex))
@@ -212,7 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     }
 
-    @objc private func refreshAction() { refresh(); reloadSessions() }
+    @objc private func refreshAction() { refresh(force: true); reloadSessions() }
 
     @objc private func toggleHooks(_ sender: NSMenuItem) {
         let t = (sender.representedObject as? String) == "codex" ? HookInstaller.codex : HookInstaller.claude

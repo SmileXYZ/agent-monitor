@@ -57,10 +57,14 @@ struct Ring: View {
 struct AgentHeader: View {
     let name: String
     let tint: Color
+    var note: String? = nil   // e.g. "as of 16:15" when showing last known numbers
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
             Circle().fill(tint).frame(width: 7, height: 7)
             Text(name).font(.system(size: 13, weight: .semibold, design: .rounded))
+            if let note {
+                Text(note).font(.system(size: 9.5, weight: .medium)).foregroundStyle(.secondary).lineLimit(1)
+            }
         }
     }
 }
@@ -70,7 +74,7 @@ struct MediumView: View {
 
     func column(_ name: String, _ tint: Color, _ u: AgentUsage) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            AgentHeader(name: name, tint: tint)
+            AgentHeader(name: name, tint: tint, note: u.staleNote)
             if let e = u.error {
                 Text(e).font(.system(size: 11)).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -118,7 +122,7 @@ struct SmallView: View {
 
     func block(_ name: String, _ tint: Color, _ u: AgentUsage) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            AgentHeader(name: name, tint: tint)
+            AgentHeader(name: name, tint: tint, note: u.staleNote)
             if let e = u.error {
                 Text(e).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2)
             } else {

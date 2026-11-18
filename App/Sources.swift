@@ -1,11 +1,25 @@
 // Usage data sources. Run only in the (non-sandboxed) menu bar app.
 import Foundation
 
+struct HTTPError: Error {
+    let status: Int
+    let retryAfter: TimeInterval?
+}
+
+enum FetchOutcome {
+    case ok(AgentUsage)
+    case failed(reason: String, rateLimited: Bool = false, retryAfter: TimeInterval? = nil)
+}
+
 enum Fetch {
     static func json(_ req: URLRequest) async throws -> [String: Any] {
         let (data, resp) = try await URLSession.shared.data(for: req)
-        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
-        guard code == 200 else { throw NSError(domain: "http", code: code) }
+        let http = resp as? HTTPURLResponse
+        let code = http?.statusCode ?? 0
+        guard code == 200 else {
+            let retry = (http?.value(forHTTPHeaderField: "Retry-After")).flatMap(TimeInterval.init)
+            throw HTTPError(status: code, retryAfter: retry)
+        }
         guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(domain: "json", code: 0)
         }
@@ -48,8 +62,8 @@ enum ClaudeSource {
         return tok
     }
 
-    static func fetch() async -> AgentUsage {
-        guard let tok = token() else { return AgentUsage(error: "Not signed in to Claude Code") }
+    static func fetch() async -> FetchOutcome {
+        guard let tok = token() else { return .failed(reason: "Not signed in to Claude Code") }
         var req = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
         req.setValue("Bearer \(tok)", forHTTPHeaderField: "Authorization")
         req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
@@ -60,11 +74,15 @@ enum ClaudeSource {
                 let w = j[k] as? [String: Any]
                 return Limit(percent: Fetch.num(w?["utilization"]), resetsAt: Fetch.isoDate(w?["resets_at"]))
             }
-            return AgentUsage(fiveHour: lim("five_hour"), week: lim("seven_day"))
-        } catch let e as NSError where e.domain == "http" && e.code == 401 {
-            return AgentUsage(error: "Token expired, open Claude Code")
+            return .ok(AgentUsage(fiveHour: lim("five_hour"), week: lim("seven_day"), fetchedAt: Date()))
+        } catch let e as HTTPError where e.status == 401 {
+            return .failed(reason: "Token expired, open Claude Code")
+        } catch let e as HTTPError where e.status == 429 {
+            return .failed(reason: "Rate limited", rateLimited: true, retryAfter: e.retryAfter)
+        } catch let e as HTTPError {
+            return .failed(reason: "Server error \(e.status)")
         } catch {
-            return AgentUsage(error: "Offline")
+            return .failed(reason: "Offline")
         }
     }
 }
@@ -72,11 +90,6 @@ enum ClaudeSource {
 enum CodexSource {
     static let home = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex")
 
-    static func fetch() async -> AgentUsage {
-        if let api = await fetchAPI() { return api }
-        if let log = fromLogs() { return log }
-        return AgentUsage(error: "No data")
-    }
 
     /// Live data from the ChatGPT backend (the same one Codex CLI uses).
     static func fetchAPI() async -> AgentUsage? {
@@ -98,7 +111,7 @@ enum CodexSource {
             else if let after = Fetch.num(w?["reset_after_seconds"]) { reset = Date().addingTimeInterval(after) }
             return Limit(percent: Fetch.num(w?["used_percent"]), resetsAt: reset)
         }
-        let u = AgentUsage(fiveHour: lim("primary_window"), week: lim("secondary_window"))
+        let u = AgentUsage(fiveHour: lim("primary_window"), week: lim("secondary_window"), fetchedAt: Date())
         return u.fiveHour.percent == nil && u.week.percent == nil ? nil : u
     }
 

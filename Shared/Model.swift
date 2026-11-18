@@ -16,7 +16,25 @@ struct Limit: Codable, Equatable {
 struct AgentUsage: Codable, Equatable {
     var fiveHour = Limit()
     var week = Limit()
-    var error: String?
+    var error: String?          // shown instead of the rings: there's no data at all
+    var fetchedAt: Date?        // when these numbers came from the API
+    var staleReason: String?    // last fetch failed; numbers are from `fetchedAt`
+
+    var hasData: Bool { fiveHour.percent != nil || week.percent != nil }
+
+    /// "as of 16:15" when showing last known numbers after a failed fetch.
+    var staleNote: String? {
+        guard staleReason != nil, let f = fetchedAt else { return nil }
+        return "as of " + f.formatted(date: .omitted, time: .shortened)
+    }
+
+    /// Keep the last good numbers when a fetch fails; only show an error if there's nothing to show.
+    func failed(_ reason: String) -> AgentUsage {
+        guard hasData, error == nil else { return AgentUsage(error: reason) }
+        var u = self
+        u.staleReason = reason
+        return u
+    }
 }
 
 struct Snapshot: Codable, Equatable {
