@@ -41,6 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         startWatching()
         reloadSessions()
+        listenForWidgetRefresh()
         // Ages tick and dead sessions get swept even when no hook fires.
         Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
             Task { @MainActor in self.reloadSessions() }
@@ -57,7 +58,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             async let codexAPI = CodexSource.fetchAPI()
 
             var claude = snapshot.claude
-            if now >= claudeNext || (force && claudeBackoff == 0) {
+            // Manual refresh skips the 5-min interval, but not a 429 backoff, and not more than every 20 s.
+            let recent = snapshot.claude.fetchedAt.map { now.timeIntervalSince($0) < 20 } ?? false
+            if now >= claudeNext || (force && claudeBackoff == 0 && !recent) {
                 switch await ClaudeSource.fetch() {
                 case .ok(let u):
                     claude = u
@@ -92,6 +95,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             WidgetCenter.shared.reloadTimelines(ofKind: "AgentMonitorWidget")
             loading = false
         }
+    }
+
+    /// The widget's ⟳ button posts a Darwin notification (see Widget/RefreshIntent.swift).
+    private func listenForWidgetRefresh() {
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(), Unmanaged.passUnretained(self).toOpaque(),
+            { _, observer, _, _, _ in
+                guard let observer else { return }
+                let me = Unmanaged<AppDelegate>.fromOpaque(observer).takeUnretainedValue()
+                Task { @MainActor in me.refresh(force: true) }
+            },
+            "com.pavelershov.agentmonitor.refresh" as CFString, nil, .deliverImmediately)
     }
 
     // MARK: sessions

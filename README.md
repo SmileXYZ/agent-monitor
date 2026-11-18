@@ -56,6 +56,7 @@ And when you run several agents at once, they quietly stall: one wants approval 
 - **Real WidgetKit widget.** It lives in the widget gallery and snaps to the desktop grid like Weather or Calendar.
 - **Three sizes.** Medium shows four rings, small shows compact bars, large adds the waiting list.
 - **Countdowns.** Time until each window resets, updated every minute.
+- **Freshness and ⟳.** The corner shows how old the numbers are ("3m ago"). Click it to fetch fresh ones; the widget redraws right away. If a fetch fails, the last known numbers stay, marked "as of 16:15".
 - **Color warnings.** Each ring turns amber at 75% and red at 90%.
 - **Light and dark.** Follows the system appearance.
 - **Menu bar companion.** Shows the current numbers and offers *Refresh*, *Launch at Login* and *Quit*.
@@ -165,7 +166,8 @@ Both agents support lifecycle hooks with nearly the same events. The installed h
 
 - **Both usage endpoints are undocumented.** They're what the official tools use internally, and they can change without notice. If a number disappears after an update, please open an issue.
 - **Claude tokens expire.** Claude Code refreshes its token when you use it. If the widget says *Token expired*, open Claude Code once.
-- **Widgets lag; the menu bar doesn't.** macOS limits how often widgets redraw, roughly every 15–30 minutes for an app in the background. The menu bar count is live; treat the widget as an overview.
+- **Widgets lag; the menu bar doesn't.** macOS limits how often widgets redraw on their own, roughly every 15–30 minutes for an app in the background. Click ⟳ in the widget to force a redraw with fresh numbers. The menu bar is always live.
+- **Claude's usage endpoint rate-limits.** Agent Monitor polls it every 5 minutes and backs off on HTTP 429, so the Claude numbers can be a few minutes behind the Claude app.
 - **Exact jumping works in the Claude and Codex apps, Terminal and iTerm2.** For terminals, macOS asks once to let Agent Monitor control them (Automation). Other hosts are brought to the front without selecting the session. The Claude and Codex deep links aren't documented APIs and may change.
 - **The Codex fallback can be stale.** When the API isn't reachable, the numbers come from your last Codex session. A window that has already reset is shown as 0%.
 

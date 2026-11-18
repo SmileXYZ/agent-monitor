@@ -1,4 +1,5 @@
 // SwiftUI views for the widget. Also used by tools/previews to render README images.
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -94,6 +95,28 @@ struct MediumView: View {
             Rectangle().fill(.primary.opacity(0.1)).frame(width: 1)
             column("Codex", Palette.codex, entry.snapshot.codex)
         }
+        .overlay(alignment: .topTrailing) { UpdatedBadge(updated: entry.snapshot.updated, now: entry.date) }
+    }
+}
+
+/// "3m ago ⟳": how old the numbers are, and a button that fetches fresh ones and redraws the widget.
+struct UpdatedBadge: View {
+    let updated: Date?
+    let now: Date
+    var body: some View {
+        Button(intent: RefreshIntent()) {
+            HStack(spacing: 3) {
+                Text(updated.map { let a = ago($0, now: now); return a == "now" ? "now" : "\(a) ago" } ?? "—")
+                    .monospacedDigit()
+                Image(systemName: "arrow.clockwise").font(.system(size: 8.5, weight: .bold))
+            }
+            .font(.system(size: 9.5, weight: .medium))
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 2)
+            .padding(.leading, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -138,6 +161,7 @@ struct SmallView: View {
             block("Codex", Palette.codex, entry.snapshot.codex)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay(alignment: .topTrailing) { UpdatedBadge(updated: entry.snapshot.updated, now: entry.date) }
     }
 }
 

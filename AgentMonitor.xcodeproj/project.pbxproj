@@ -10,6 +10,7 @@
 		0743041C698D044E32A2D989 /* Sources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C9CAF61255F655EAA14B6AE /* Sources.swift */; };
 		1ACAE446E8988741CEA31A94 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3603C9C773F9B4D4D0A748E /* Model.swift */; };
 		282A0C30041E728972545DE4 /* AgentMonitorWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5D641AF7BAAA10DC70F0DDE6 /* AgentMonitorWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2ED7ED0AD01C3EAC851D14DB /* RefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 832D0D1441A4DB63467DD71D /* RefreshIntent.swift */; };
 		4D7152AFE87137001B04CAC3 /* Sessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72E37BC55FE860606C59CEE6 /* Sessions.swift */; };
 		54587BDD485047029401439A /* Sessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72E37BC55FE860606C59CEE6 /* Sessions.swift */; };
 		5FD0204A126D538153EAF2F8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 27BAD8B7F3D4E3C8DBF9C21F /* Assets.xcassets */; };
@@ -60,6 +61,7 @@
 		72E37BC55FE860606C59CEE6 /* Sessions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sessions.swift; sourceTree = "<group>"; };
 		74E611217BACF18A4FCDAE40 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7CB405E29ACC5BBA56BCBD60 /* AgentMonitorWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AgentMonitorWidget.entitlements; sourceTree = "<group>"; };
+		832D0D1441A4DB63467DD71D /* RefreshIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshIntent.swift; sourceTree = "<group>"; };
 		8B15041E92A73E11E2B796C4 /* HookInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookInstaller.swift; sourceTree = "<group>"; };
 		9C9CAF61255F655EAA14B6AE /* Sources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources.swift; sourceTree = "<group>"; };
 		9E4C16D881DBBE5624AE0CDB /* AgentMonitor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AgentMonitor.entitlements; sourceTree = "<group>"; };
@@ -119,6 +121,7 @@
 				7CB405E29ACC5BBA56BCBD60 /* AgentMonitorWidget.entitlements */,
 				427E6F225B8025F98E1C3487 /* AgentWidget.swift */,
 				74E611217BACF18A4FCDAE40 /* Info.plist */,
+				832D0D1441A4DB63467DD71D /* RefreshIntent.swift */,
 				4DA5F3FAE7528942D5EE6CBD /* WidgetViews.swift */,
 			);
 			path = Widget;
@@ -245,6 +248,7 @@
 			files = (
 				77863AC7C4816E66CB1D0BF9 /* AgentWidget.swift in Sources */,
 				6C541B0C1722F0F25CF392A9 /* Model.swift in Sources */,
+				2ED7ED0AD01C3EAC851D14DB /* RefreshIntent.swift in Sources */,
 				4D7152AFE87137001B04CAC3 /* Sessions.swift in Sources */,
 				FDC1096DFE08CB6BBB5809EC /* WidgetViews.swift in Sources */,
 			);
