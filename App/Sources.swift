@@ -8,7 +8,8 @@ struct HTTPError: Error {
 
 enum FetchOutcome {
     case ok(AgentUsage)
-    case failed(reason: String, rateLimited: Bool = false, retryAfter: TimeInterval? = nil)
+    /// `auth`: the user has to act (sign in, open Claude Code); old numbers would only hide that.
+    case failed(reason: String, rateLimited: Bool = false, retryAfter: TimeInterval? = nil, auth: Bool = false)
 }
 
 enum Fetch {
@@ -63,7 +64,7 @@ enum ClaudeSource {
     }
 
     static func fetch() async -> FetchOutcome {
-        guard let tok = token() else { return .failed(reason: "Not signed in to Claude Code") }
+        guard let tok = token() else { return .failed(reason: "Not signed in to Claude Code", auth: true) }
         var req = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
         req.setValue("Bearer \(tok)", forHTTPHeaderField: "Authorization")
         req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
@@ -76,7 +77,7 @@ enum ClaudeSource {
             }
             return .ok(AgentUsage(fiveHour: lim("five_hour"), week: lim("seven_day"), fetchedAt: Date()))
         } catch let e as HTTPError where e.status == 401 {
-            return .failed(reason: "Token expired, open Claude Code")
+            return .failed(reason: "Token expired, open Claude Code", auth: true)
         } catch let e as HTTPError where e.status == 429 {
             return .failed(reason: "Rate limited", rateLimited: true, retryAfter: e.retryAfter)
         } catch let e as HTTPError {
@@ -124,7 +125,7 @@ enum CodexSource {
             let d = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
             files.append((url, d))
         }
-        for (url, _) in files.sorted(by: { $0.1 > $1.1 }).prefix(5) {
+        for (url, modified) in files.sorted(by: { $0.1 > $1.1 }).prefix(5) {
             guard let fh = try? FileHandle(forReadingFrom: url) else { continue }
             let size = (try? fh.seekToEnd()) ?? 0
             try? fh.seek(toOffset: size > 1_000_000 ? size - 1_000_000 : 0)
@@ -139,7 +140,9 @@ enum CodexSource {
                     let at = Fetch.num(w?["resets_at"]).map { Date(timeIntervalSince1970: $0) }
                     return Limit(percent: Fetch.num(w?["used_percent"]), resetsAt: at)
                 }
-                return AgentUsage(fiveHour: lim("primary"), week: lim("secondary"))
+                // The event sits near the end of the file, so its mtime is a close enough "as of".
+                return AgentUsage(fiveHour: lim("primary"), week: lim("secondary"), fetchedAt: modified,
+                                  staleReason: "from local logs")
             }
         }
         return nil

@@ -63,8 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     claude = u
                     claudeBackoff = 0
                     claudeNext = now.addingTimeInterval(Self.claudeInterval)
-                case .failed(let reason, let rateLimited, let retryAfter):
-                    claude = snapshot.claude.failed(reason)
+                case .failed(let reason, let rateLimited, let retryAfter, let auth):
+                    claude = auth ? AgentUsage(error: reason) : snapshot.claude.failed(reason)
                     if rateLimited {
                         claudeBackoff = claudeBackoff == 0 ? 300 : min(claudeBackoff * 2, 1800)
                         claudeNext = now.addingTimeInterval(max(retryAfter ?? 0, claudeBackoff))
@@ -74,11 +74,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             }
 
-            // Codex: live API; on failure keep the last numbers; local logs only when there's nothing else.
+            // Codex: live API; on failure whichever is newer, the last known numbers or the local logs
+            // (re-read every time: when the API never works, the logs are the only live source).
             var codex: AgentUsage
             if let api = await codexAPI { codex = api }
-            else if snapshot.codex.hasData, snapshot.codex.error == nil { codex = snapshot.codex.failed("Offline") }
-            else { codex = CodexSource.fromLogs() ?? AgentUsage(error: "No data") }
+            else {
+                let last = snapshot.codex.hasData && snapshot.codex.error == nil ? snapshot.codex : nil
+                let logs = CodexSource.fromLogs()
+                let lastAt = last?.fetchedAt ?? .distantPast, logsAt = logs?.fetchedAt ?? .distantPast
+                if let logs, logsAt > lastAt || last == nil { codex = logs }
+                else if let last { codex = last.staleReason == nil ? last.failed("Offline") : last }
+                else { codex = AgentUsage(error: "No data") }
+            }
 
             snapshot = Snapshot(claude: claude, codex: codex, updated: now)
             SharedStore.save(snapshot)

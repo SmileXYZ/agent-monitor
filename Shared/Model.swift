@@ -17,8 +17,8 @@ struct AgentUsage: Codable, Equatable {
     var fiveHour = Limit()
     var week = Limit()
     var error: String?          // shown instead of the rings: there's no data at all
-    var fetchedAt: Date?        // when these numbers came from the API
-    var staleReason: String?    // last fetch failed; numbers are from `fetchedAt`
+    var fetchedAt: Date?        // when these numbers were current (API fetch or Codex log time)
+    var staleReason: String?    // not live: last fetch failed or numbers came from Codex logs
 
     var hasData: Bool { fiveHour.percent != nil || week.percent != nil }
 
