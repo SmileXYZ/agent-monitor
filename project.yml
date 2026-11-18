@@ -1,0 +1,60 @@
+# XcodeGen spec: `xcodegen generate` produces AgentMonitor.xcodeproj
+name: AgentMonitor
+options:
+  bundleIdPrefix: com.pavelershov
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""        # not needed: the app is signed ad-hoc ("Sign to Run Locally")
+    MARKETING_VERSION: "0.2"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  AgentMonitor:
+    type: application
+    platform: macOS
+    sources: [App, Shared]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Agent Monitor
+        LSUIElement: true
+    entitlements:
+      path: App/AgentMonitor.entitlements
+      properties: {}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pavelershov.agentmonitor
+        ENABLE_HARDENED_RUNTIME: YES
+    dependencies:
+      - target: AgentMonitorWidget
+        embed: true
+  AgentMonitorWidget:
+    type: app-extension
+    platform: macOS
+    sources: [Widget, Shared]
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Agent Monitor
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widget/AgentMonitorWidget.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.temporary-exception.files.home-relative-path.read-only:
+          - /Library/Application Support/AgentMonitor/
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pavelershov.agentmonitor.widget
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon   # icon shown in the widget gallery
+        ENABLE_HARDENED_RUNTIME: YES
+schemes:
+  AgentMonitor:
+    build:
+      targets:
+        AgentMonitor: all
+        AgentMonitorWidget: all
