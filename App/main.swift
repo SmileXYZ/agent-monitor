@@ -87,6 +87,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if let pid = s.pid, !Proc.isAlive(pid) { SessionStore.remove(s.id); return true }
             return false
         }
+        // Claude desktop sessions: opening the session in the app after it finished counts as seen.
+        for i in all.indices where all[i].agent == "claude" && all[i].state == .yourTurn && !all[i].isSeen {
+            if let f = ClaudeDesktop.info(cliSessionId: all[i].sessionId)?.lastFocusedAt, f > all[i].since {
+                SessionStore.markSeen(all[i].id)
+                all[i].seenAt = Date()
+            }
+        }
         let now = Date()
         let next = SessionStore.visible(all, now: now)
         updateStatusTitle(next)

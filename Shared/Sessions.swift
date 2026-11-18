@@ -37,6 +37,7 @@ struct AgentSession: Codable, Identifiable, Equatable {
     var updated: Date
     var pid: Int32?          // agent process, for liveness checks
     var seenAt: Date?        // user opened this session from Agent Monitor; hides a finished turn until the next one
+    var hostSessionId: String?   // Claude desktop app's own session id ("local_…"), for deep links
 
     var id: String { "\(agent)-\(sessionId)" }
     var project: String {

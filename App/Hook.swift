@@ -21,6 +21,11 @@ enum Hook {
         if !cwd.isEmpty { s.cwd = cwd }
         if let t = j["session_title"] as? String, !t.isEmpty { s.title = t }
         if agent == "codex", let t = codexThreadName(sid) { s.title = t }
+        // Sessions run by the Claude desktop app carry its session id; it opens the exact session via deep link.
+        if let h = ProcessInfo.processInfo.environment["CLAUDE_CODE_HOST_SESSION_ID"],
+           h.range(of: #"^local_[A-Za-z0-9-]{1,64}$"#, options: .regularExpression) != nil {
+            s.hostSessionId = h
+        }
         s.pid = agentPID()
 
         let tool = j["tool_name"] as? String

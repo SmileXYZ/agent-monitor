@@ -36,9 +36,9 @@ And when you run several agents at once, they quietly stall: one wants approval 
 </p>
 
 - **Blockers first, in red.** A session shows here when it needs approval for a tool call, asked you a question, or has a plan for you to review.
-- **Finished turns below.** Sessions that completed a turn and are waiting for your next prompt. Click one to open it and it leaves the list (until the agent finishes another turn). **Clear Finished** in the menu dismisses them all; otherwise they hide after 6 hours. Blockers stay until you actually answer them.
+- **Finished turns below.** Sessions that completed a turn and are waiting for your next prompt. Click one to open it and it leaves the list (until the agent finishes another turn). Sessions in the Claude app also leave once you open them there yourself. **Clear Finished** in the menu dismisses them all; otherwise they hide after 6 hours. Blockers stay until you actually answer them.
 - **Session titles.** Each row shows the session's title (Claude Code's session title, Codex's thread name), the project folder and how long it has been waiting.
-- **Click to jump.** Click a row in the widget or the menu: in Terminal and iTerm2 it selects the exact tab; for other hosts (the Claude and Codex apps, VS Code, Ghostty…) it brings the app to the front.
+- **Click to jump.** Click a row in the widget or the menu to open that exact session: in the Claude and Codex desktop apps (via their deep links), or the right tab in Terminal and iTerm2. Other hosts (VS Code, Ghostty…) are brought to the front.
 - **Real time in the menu bar.** The icon shows a count, red when something is blocked.
 - **Works across surfaces.** Terminal sessions and desktop apps alike, via the agents' official hooks.
 - **Dead sessions clean themselves up.** On session end, or when the agent process is gone.
@@ -137,7 +137,7 @@ Both agents support lifecycle hooks with nearly the same events. The installed h
 - **Both usage endpoints are undocumented.** They're what the official tools use internally, and they can change without notice. If a number disappears after an update, please open an issue.
 - **Claude tokens expire.** Claude Code refreshes its token when you use it. If the widget says *Token expired*, open Claude Code once.
 - **Widgets lag; the menu bar doesn't.** macOS limits how often widgets redraw, roughly every 15–30 minutes for an app in the background. The menu bar count is live; treat the widget as an overview.
-- **Exact-tab jumping works in Terminal and iTerm2 only.** The first time, macOS asks to let Agent Monitor control that terminal (Automation). Other hosts are brought to the front, without selecting the specific session.
+- **Exact jumping works in the Claude and Codex apps, Terminal and iTerm2.** For terminals, macOS asks once to let Agent Monitor control them (Automation). Other hosts are brought to the front without selecting the session. The Claude and Codex deep links aren't documented APIs and may change.
 - **The Codex fallback can be stale.** When the API isn't reachable, the numbers come from your last Codex session. A window that has already reset is shown as 0%.
 
 ## Troubleshooting

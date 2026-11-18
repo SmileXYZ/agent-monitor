@@ -1,5 +1,8 @@
-// Brings the user to an agent session: the exact tab in Terminal/iTerm2 (matched by tty),
-// otherwise the app hosting the agent (Claude, Codex, VS Code, Ghostty, …).
+// Brings the user to an agent session:
+// • Claude desktop app → that session (claude://code/continue?session=local_…)
+// • Codex app → that thread (codex://threads/<id>)
+// • Terminal / iTerm2 → that tab (matched by the agent's tty)
+// • anything else (VS Code, Ghostty, …) → the app comes to the front.
 import AppKit
 
 @MainActor
@@ -7,8 +10,26 @@ enum Jumper {
     static func open(_ s: AgentSession) {
         guard let pid = s.pid else { return }
         guard let app = hostApp(pid) else { return }
+        if let url = deepLink(s, host: app) {
+            NSWorkspace.shared.open(url)   // also activates the app
+            return
+        }
         if let tty = Proc.tty(pid), selectTab(in: app, tty: tty) { return }
         bringToFront(app)
+    }
+
+    private static func deepLink(_ s: AgentSession, host: NSRunningApplication) -> URL? {
+        switch host.bundleIdentifier {
+        case "com.anthropic.claudefordesktop":
+            guard let local = s.hostSessionId ?? ClaudeDesktop.info(cliSessionId: s.sessionId)?.localId,
+                  local.range(of: ClaudeDesktop.localIdPattern, options: .regularExpression) != nil else { return nil }
+            return URL(string: "claude://code/continue?session=\(local)")
+        case "com.openai.codex":
+            guard UUID(uuidString: s.sessionId) != nil else { return nil }
+            return URL(string: "codex://threads/\(s.sessionId.lowercased())")
+        default:
+            return nil
+        }
     }
 
     /// `NSRunningApplication.activate()` is ignored for a background app on macOS 14+ (cooperative activation),
