@@ -31,8 +31,16 @@ pkill -x AgentMonitor 2>/dev/null || true
 rm -rf "$DEST"
 cp -R "$DERIVED/Build/Products/Release/$APP_NAME" "$DEST"
 
-# Re-register and restart the widget daemon so the gallery picks up new widgets/strings right away.
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST" || true
+# Build products get registered with LaunchServices too, and the widget gallery may then show
+# the icon/strings of a stale copy from build/ instead of the installed one. Forget every copy
+# except /Applications, then re-register and restart the widget daemon.
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+"$LSREGISTER" -dump 2>/dev/null | grep -E "^path:.*/$APP_NAME \(" | sed -E 's/^path: +//; s/ \(0x[0-9a-f]+\)$//' \
+  | grep -vx "$DEST" | while IFS= read -r stale; do
+      pluginkit -r "$stale/Contents/PlugIns/AgentMonitorWidget.appex" 2>/dev/null || true
+      "$LSREGISTER" -u "$stale" 2>/dev/null || true
+    done
+"$LSREGISTER" -f -R "$DEST" || true
 pkill -f AgentMonitorWidget.appex 2>/dev/null || true
 killall chronod 2>/dev/null || true
 
