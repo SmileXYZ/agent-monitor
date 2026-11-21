@@ -47,6 +47,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
             Task { @MainActor in self.reloadSessions() }
         }
+        let urls = pendingURLs ?? []
+        pendingURLs = nil
+        if !urls.isEmpty { application(NSApp, open: urls) }
     }
 
     // MARK: usage limits
@@ -169,7 +172,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func updateStatusTitle(_ list: [AgentSession]) {
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem?.button else { return }
         if list.isEmpty { button.attributedTitle = NSAttributedString(string: ""); return }
         let blocking = list.contains { $0.state.isBlocking }
         let color: NSColor = blocking ? .systemRed : .labelColor
@@ -195,7 +198,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// Widget taps arrive as agentmonitor://session/<id>.
+    /// A widget tap can launch the app with the URL before applicationDidFinishLaunching has run.
+    private var pendingURLs: [URL]? = []
+
     func application(_ application: NSApplication, open urls: [URL]) {
+        guard pendingURLs == nil else { pendingURLs! += urls; return }
         for url in urls where url.scheme == "agentmonitor" && url.host == "session" {
             let id = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
             if let s = SessionStore.load(id) ?? waiting.first(where: { $0.id == id }) { openSession(s) }
