@@ -12,7 +12,7 @@ A port of the macOS app in this repository. Windows has no desktop widgets like 
 
 - **Usage limits.** Rings for the 5-hour and weekly windows with a countdown to the reset. Amber at 75%, red at 90%.
 - **Waiting on you.** Blockers first, in red: a tool call needs approval, the agent asked a question, or there is a plan to review. Finished turns below. Click a row to open that session.
-- **Tray icon.** Shows the number of waiting sessions, red when something is blocked. Left click brings the widget above the windows, another click sends it back to the desktop. Right click opens the menu.
+- **Tray icon.** Shows the number of waiting sessions, red when something is blocked. Left click shows the widget above the windows for a moment: it goes back to the desktop by itself when you switch to another window. *Always on Top* in the menu keeps it there. Right click opens the menu.
 - **Zero config.** Reuses the logins you already have in Claude Code and Codex CLI.
 - **English and Russian.** Follows the Windows display language; `AGENT_MONITOR_LANG=en|ru` overrides it.
 

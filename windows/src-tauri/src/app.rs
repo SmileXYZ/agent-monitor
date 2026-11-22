@@ -24,6 +24,8 @@ pub struct Shared {
     history: Mutex<History>,
     settings: Mutex<Settings>,
     settings_dirty: AtomicBool,
+    /// The widget is above the windows only for a look (see peek).
+    peeking: AtomicBool,
     loading: AtomicBool,
     refresh_tx: Mutex<mpsc::Sender<bool>>,
     kick_tx: Mutex<mpsc::Sender<()>>,
@@ -386,16 +388,54 @@ fn apply_layer(win: &WebviewWindow, on_top: bool) {
     }
 }
 
+/// The menu's "Always on Top": a lasting choice.
 fn toggle_on_top(app: &AppHandle, sh: &Shared) {
     let on_top = {
         let mut s = sh.settings.lock().unwrap();
-        s.on_top = !s.on_top || s.hidden;
+        s.on_top = !s.on_top;
         s.hidden = false;
         s.on_top
     };
+    sh.peeking.store(false, Ordering::Relaxed);
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.show();
         apply_layer(&win, on_top);
+    }
+}
+
+/// A left click on the tray icon: a look at the widget, not a mode. It comes above the windows and goes
+/// back to the desktop by itself as soon as another window takes the focus (or on a second click).
+fn peek(app: &AppHandle, sh: &Sh) {
+    let Some(win) = app.get_webview_window("main") else { return };
+    let on_top = {
+        let mut s = sh.settings.lock().unwrap();
+        s.hidden = false;
+        s.on_top
+    };
+    let _ = win.show();
+    if on_top {
+        return;
+    }
+    if sh.peeking.swap(false, Ordering::Relaxed) {
+        apply_layer(&win, false);
+        return;
+    }
+    sh.peeking.store(true, Ordering::Relaxed);
+    apply_layer(&win, true);
+    let _ = win.set_focus();
+    // If the widget never got the focus, no "focus lost" will come to send it back: do it on a timer.
+    let (sh, win) = (sh.clone(), win.clone());
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_secs(12));
+        if !win.is_focused().unwrap_or(false) {
+            end_peek(&win, &sh);
+        }
+    });
+}
+
+fn end_peek(win: &WebviewWindow, sh: &Shared) {
+    if sh.peeking.swap(false, Ordering::Relaxed) && !sh.settings.lock().unwrap().on_top {
+        apply_layer(win, false);
     }
 }
 
@@ -524,6 +564,7 @@ pub fn run() {
         history: Mutex::new(store::load_history()),
         settings: Mutex::new(store::load_settings()),
         settings_dirty: AtomicBool::new(false),
+        peeking: AtomicBool::new(false),
         loading: AtomicBool::new(false),
         refresh_tx: Mutex::new(refresh_tx),
         kick_tx: Mutex::new(kick_tx),
@@ -560,6 +601,13 @@ pub fn run() {
                 (s.x, s.y) = (Some(pos.x), Some(pos.y));
                 sh.settings_dirty.store(true, Ordering::Relaxed);
             }
+            WindowEvent::Focused(false) => {
+                // The user moved on to another window: a peek is over.
+                let sh = window.state::<Sh>().inner().clone();
+                if let Some(win) = window.app_handle().get_webview_window("main") {
+                    end_peek(&win, &sh);
+                }
+            }
             _ => {}
         })
         .setup(move |app| {
@@ -573,11 +621,11 @@ pub fn run() {
                 .menu(&build_menu(&handle, &sh)?)
                 .show_menu_on_left_click(false)
                 .on_tray_icon_event(|tray, event| {
-                    // Left click: bring the widget above the windows, click again to send it back.
+                    // Left click: a look at the widget above the windows; it goes back by itself.
                     if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
                         let app = tray.app_handle();
                         let sh = app.state::<Sh>().inner().clone();
-                        toggle_on_top(app, &sh);
+                        peek(app, &sh);
                         sh.settings_dirty.store(true, Ordering::Relaxed);
                         rebuild_menu(app, &sh);
                     }
